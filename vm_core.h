@@ -346,7 +346,7 @@ struct rb_iseq_constant_body {
     } type;              /* instruction sequence type */
 
     unsigned int iseq_size;
-    const VALUE *iseq_encoded; /* encoded iseq (insn addr and operands) */
+    VALUE *iseq_encoded; /* encoded iseq (insn addr and operands) */
 
     /**
      * parameter information
@@ -414,7 +414,7 @@ struct rb_iseq_constant_body {
 	    int bits_start;
 	    int rest_start;
 	    const ID *table;
-	    const VALUE *default_values;
+	    VALUE *default_values;
 	} *keyword;
     } param;
 
@@ -1029,7 +1029,7 @@ typedef struct {
 
 typedef struct {
     VALUE flags; /* imemo header */
-    const rb_iseq_t *iseq;
+    rb_iseq_t *iseq;
     const VALUE *ep;
     const VALUE *env;
     unsigned int env_size;

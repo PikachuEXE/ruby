@@ -797,6 +797,7 @@ ar_foreach(VALUE hash, int (*func)(ANYARGS), st_data_t arg)
               case ST_CONTINUE:
                 break;
               case ST_CHECK:
+              case ST_REPLACE:
               case ST_STOP:
                 return 0;
               case ST_DELETE:
@@ -845,6 +846,7 @@ ar_foreach_check(VALUE hash, int (*func)(ANYARGS), st_data_t arg,
               case ST_CONTINUE:
                 break;
               case ST_STOP:
+              case ST_REPLACE:
                 return 0;
               case ST_DELETE: {
                   if (!ar_empty_entry(cur_entry)) {
