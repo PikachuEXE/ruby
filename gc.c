@@ -170,6 +170,8 @@ typedef struct {
     size_t oldmalloc_limit_max;
     double oldmalloc_limit_growth_factor;
 
+    bool   auto_compaction_enabled;
+
     VALUE gc_stress;
 } ruby_gc_params_t;
 
@@ -191,6 +193,8 @@ static ruby_gc_params_t gc_params = {
     GC_OLDMALLOC_LIMIT_MIN,
     GC_OLDMALLOC_LIMIT_MAX,
     GC_OLDMALLOC_LIMIT_GROWTH_FACTOR,
+
+    FALSE,
 
     FALSE,
 };
@@ -535,6 +539,7 @@ typedef struct rb_objspace {
 #if GC_ENABLE_INCREMENTAL_MARK
 	unsigned int during_incremental_marking : 1;
 #endif
+    unsigned int auto_compaction_enabled : 1;
     } flags;
 
     rb_event_flag_t hook_events;
@@ -809,6 +814,8 @@ gc_mode_verify(enum gc_mode mode)
 #endif
 #define has_sweeping_pages(heap)         ((heap)->sweeping_page != 0)
 #define is_lazy_sweeping(heap)           (GC_ENABLE_LAZY_SWEEP && has_sweeping_pages(heap))
+
+#define auto_compaction_enabled(objspace) ((objspace)->flags.auto_compaction_enabled != FALSE)
 
 #if SIZEOF_LONG == SIZEOF_VOIDP
 # define nonspecial_obj_id(obj) (VALUE)((SIGNED_VALUE)(obj)|FIXNUM_FLAG)
@@ -3977,6 +3984,19 @@ gc_sweep(rb_objspace_t *objspace)
     const unsigned int immediate_sweep = objspace->flags.immediate_sweep;
 
     gc_report(1, objspace, "gc_sweep: immediate: %d\n", immediate_sweep);
+
+    // region auto compact
+    if (auto_compaction_enabled(objspace) && gc_params.auto_compaction_enabled) {
+        gc_report(2, objspace, "gc_sweep: starting auto compaction");
+
+        gc_compact_heap(objspace);
+
+        gc_update_references(objspace);
+
+        rb_clear_method_cache_by_class(rb_cObject);
+        rb_clear_constant_cache();
+    }
+    // endregion auto compact
 
     if (immediate_sweep) {
 #if !GC_ENABLE_LAZY_SWEEP
@@ -7858,6 +7878,9 @@ rb_gc_compact(VALUE mod)
 {
     rb_objspace_t *objspace = &rb_objspace;
 
+    // Disable auto compaction
+    objspace->flags.auto_compaction_enabled = FALSE;
+
     /* Ensure objects are pinned */
     rb_gc();
 
@@ -7874,6 +7897,9 @@ rb_gc_compact(VALUE mod)
 
     /* GC after compaction to eliminate T_MOVED */
     rb_gc();
+
+    // Enable auto compaction
+    objspace->flags.auto_compaction_enabled = TRUE;
 
     return rb_gc_compact_stats(mod);
 }
@@ -7902,6 +7928,9 @@ gc_verify_compaction_references(VALUE dummy)
     /* Double heap size */
     heap_add_pages(objspace, heap_eden, heap_allocated_pages);
 
+    // Disable auto compaction
+    objspace->flags.auto_compaction_enabled = FALSE;
+
     /* Ensure objects are pinned */
     rb_gc();
 
@@ -7916,6 +7945,9 @@ gc_verify_compaction_references(VALUE dummy)
     /* GC after compaction to eliminate T_MOVED */
     rb_gc();
     gc_verify_internal_consistency(Qnil);
+
+    // Enable auto compaction
+    objspace->flags.auto_compaction_enabled = TRUE;
 
     return rb_gc_compact_stats(dummy);
 }
@@ -8697,6 +8729,19 @@ get_envparam_double(const char *name, double *default_value, double lower_bound,
     return 0;
 }
 
+static int
+get_envparam_bool(const char *name, int *default_value)
+{
+    char *ptr = getenv(name);
+
+    if (ptr != NULL && *ptr) {
+        if (RTEST(ruby_verbose)) fprintf(stderr, "%s=%f (default value: %f)\n", name, ptr, *default_value);
+        *default_value = (*ptr == 'true') ? 1 : 0;
+        return 1;
+    }
+    return 0;
+}
+
 static void
 gc_set_initial_pages(void)
 {
@@ -8798,6 +8843,8 @@ ruby_gc_set_params(int safe_level)
     get_envparam_size  ("RUBY_GC_OLDMALLOC_LIMIT_MAX", &gc_params.oldmalloc_limit_max, 0);
     get_envparam_double("RUBY_GC_OLDMALLOC_LIMIT_GROWTH_FACTOR", &gc_params.oldmalloc_limit_growth_factor, 1.0, 0.0, FALSE);
 #endif
+
+    get_envparam_bool("RUBY_GC_AUTO_COMPACTION_ENABLED", &gc_params.auto_compaction_enabled);
 }
 
 void
