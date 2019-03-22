@@ -170,7 +170,8 @@ typedef struct {
     size_t oldmalloc_limit_max;
     double oldmalloc_limit_growth_factor;
 
-    bool   auto_compaction_enabled;
+    // Should I defined this as `int` or `bool`?
+    unsigned int auto_compaction_enabled;
 
     VALUE gc_stress;
 } ruby_gc_params_t;
@@ -8730,7 +8731,7 @@ get_envparam_double(const char *name, double *default_value, double lower_bound,
 }
 
 static int
-get_envparam_bool(const char *name, int *default_value)
+get_envparam_bool(const char *name, unsigned int *default_value)
 {
     char *ptr = getenv(name);
 
