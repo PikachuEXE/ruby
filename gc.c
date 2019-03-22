@@ -3375,7 +3375,6 @@ rb_obj_id(VALUE obj)
 #endif
 	return id;
     } else {
-	int tries;
 	id = nonspecial_obj_id(obj);
 
 	while(1) {
@@ -7280,8 +7279,6 @@ struct heap_cursor {
 static void
 advance_cursor(struct heap_cursor *free, struct heap_page **page_list)
 {
-    rb_objspace_t *objspace = free->objspace;
-
     if (free->slot == free->page->start + free->page->total_slots - 1) {
 	free->index++;
 	free->page = page_list[free->index];
@@ -7294,8 +7291,6 @@ advance_cursor(struct heap_cursor *free, struct heap_page **page_list)
 static void
 retreat_cursor(struct heap_cursor *scan, struct heap_page **page_list)
 {
-    rb_objspace_t *objspace = scan->objspace;
-
     if (scan->slot == scan->page->start) {
 	scan->index--;
 	scan->page = page_list[scan->index];
@@ -7363,7 +7358,6 @@ gc_compact_heap(rb_objspace_t *objspace)
 {
     struct heap_cursor free_cursor;
     struct heap_cursor scan_cursor;
-    int number_considered;
     struct heap_page **page_list;
 
     memset(objspace->rcompactor.considered_count_table, 0, T_MASK * sizeof(size_t));
@@ -7428,8 +7422,6 @@ gc_ref_update_object(rb_objspace_t * objspace, VALUE v)
 static int
 hash_replace_ref(st_data_t *key, st_data_t *value, st_data_t argp, int existing)
 {
-    rb_objspace_t *objspace;
-
     if(!SPECIAL_CONST_P((void *)*key) && BUILTIN_TYPE(*key) == T_MOVED) {
 	*key = (VALUE)RMOVED(*key)->destination;
     }
