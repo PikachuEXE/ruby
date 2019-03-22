@@ -4328,16 +4328,6 @@ gc_mark_and_pin_values(rb_objspace_t *objspace, long n, const VALUE *values)
     }
 }
 
-static void
-gc_mark_values(rb_objspace_t *objspace, long n, const VALUE *values)
-{
-    long i;
-
-    for (i=0; i<n; i++) {
-	gc_mark(objspace, values[i]);
-    }
-}
-
 void
 rb_gc_mark_values(long n, const VALUE *values)
 {
