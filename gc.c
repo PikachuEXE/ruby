@@ -892,6 +892,9 @@ static void gc_grey(rb_objspace_t *objspace, VALUE ptr);
 static inline int gc_mark_set(rb_objspace_t *objspace, VALUE obj);
 NO_SANITIZE("memory", static inline int is_pointer_to_heap(rb_objspace_t *objspace, void *ptr));
 
+static void gc_compact_heap(rb_objspace_t *objspace);
+static void gc_update_references(rb_objspace_t * objspace);
+
 static void   push_mark_stack(mark_stack_t *, VALUE);
 static int    pop_mark_stack(mark_stack_t *, VALUE *);
 static size_t mark_stack_size(mark_stack_t *stack);
@@ -3652,7 +3655,9 @@ count_objects(int argc, VALUE *argv, VALUE os)
     rb_hash_aset(hash, ID2SYM(rb_intern("FREE")), SIZET2NUM(freed));
 
     for (i = 0; i <= T_MASK; i++) {
-        VALUE type = type_sym(i);
+        // Got this error during compiling:
+        // implicit conversion loses integer precision: 'size_t' (aka 'unsigned long') to 'int'
+        VALUE type = type_sym((int)i);
         if (counts[i])
             rb_hash_aset(hash, type, SIZET2NUM(counts[i]));
     }
